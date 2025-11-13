@@ -115,12 +115,12 @@ namespace JRPGGame.Progression
     [Serializable]
     public class UpgradeMaterial
     {
-        public Material material;
+        public CraftingMaterial material;
         public int quantity;
     }
 
     [CreateAssetMenu(fileName = "New Material", menuName = "JRPG/Progression/Material")]
-    public class Material : ScriptableObject
+    public class CraftingMaterial : ScriptableObject
     {
         public string materialName;
         public string description;

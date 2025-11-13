@@ -197,12 +197,12 @@ namespace JRPGGame.Inventory
         }
 
         // Material specific methods
-        public int GetMaterialCount(Material material)
+        public int GetMaterialCount(CraftingMaterial material)
         {
             return materials.Where(s => s.material == material).Sum(s => s.quantity);
         }
 
-        public bool RemoveMaterial(Material material, int quantity)
+        public bool RemoveMaterial(CraftingMaterial material, int quantity)
         {
             int totalAmount = GetMaterialCount(material);
             if (totalAmount < quantity) return false;
@@ -285,7 +285,7 @@ namespace JRPGGame.Inventory
     {
         public Item item;
         public Equipment equipment;
-        public Material material;
+        public CraftingMaterial material;
         public int quantity;
 
         public string GetName()
