@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grid Wall Conquest</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #0d1117;
+  color: #e6e6e6;
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px 10px;
+}
+
+h1 {
+  font-size: 1.9rem;
+  letter-spacing: 4px;
+  margin-bottom: 18px;
+  color: #e2b714;
+  text-shadow: 0 0 24px rgba(226,183,20,0.45);
+  text-align: center;
+}
+
+#info-bar {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 14px;
+  width: min(580px, 96vw);
+}
+
+.player-card {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 10px;
+  text-align: center;
+  border: 2px solid transparent;
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+.card-x { background: #111827; border-color: #1f2937; }
+.card-o { background: #f5f0e8; color: #1a1a1a; border-color: #d4c9b0; }
+.card-x.active { border-color: #e2b714; box-shadow: 0 0 18px rgba(226,183,20,0.55); }
+.card-o.active { border-color: #e2b714; box-shadow: 0 0 18px rgba(226,183,20,0.55); }
+
+.lbl { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.6; }
+.pname { font-size: 1.3rem; font-weight: 700; margin: 2px 0; }
+.pscore { font-size: 2rem; font-weight: 700; line-height: 1; }
+.card-x .pscore { color: #60a5fa; }
+.card-o .pscore { color: #f87171; }
+
+#turn-mid {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  text-align: center;
+  min-width: 90px;
+  gap: 4px;
+}
+#turn-mid #turn-txt { font-size: 1rem; font-weight: bold; color: #e2b714; }
+#turn-mid #pass-count { font-size: 0.75rem; color: #888; }
+
+canvas {
+  cursor: crosshair;
+  border-radius: 6px;
+  display: block;
+  max-width: 96vw;
+  max-height: 80vh;
+}
+
+#msg {
+  margin-top: 10px;
+  font-size: 1rem;
+  color: #fbbf24;
+  min-height: 1.5em;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+#controls {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+button {
+  padding: 9px 22px;
+  border: none;
+  border-radius: 7px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: opacity 0.2s, transform 0.1s;
+  letter-spacing: 0.5px;
+}
+button:hover { opacity: 0.88; }
+button:active { transform: scale(0.97); }
+#btn-pass { background: #1d4ed8; color: white; }
+#btn-new  { background: #dc2626; color: white; }
+#btn-size { background: #065f46; color: white; }
+
+details {
+  margin-top: 16px;
+  width: min(580px, 96vw);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+summary { cursor: pointer; font-weight: bold; color: #9ca3af; font-size: 0.9rem; }
+details[open] summary { color: #d1d5db; margin-bottom: 8px; }
+details ul { padding-left: 18px; }
+details li { margin: 5px 0; color: #9ca3af; font-size: 0.85rem; line-height: 1.5; }
+details li strong { color: #e2b714; }
+</style>
+</head>
+<body>
+
+<h1>GRID WALL CONQUEST</h1>
+
+<div id="info-bar">
+  <div class="player-card card-x active" id="card-x">
+    <div class="lbl">Player 1</div>
+    <div class="pname">✕ X</div>
+    <div class="pscore" id="score-x">0</div>
+    <div class="lbl">conquered</div>
+  </div>
+  <div id="turn-mid">
+    <div class="lbl">turn</div>
+    <div id="turn-txt">X</div>
+    <div id="pass-count"></div>
+  </div>
+  <div class="player-card card-o" id="card-o">
+    <div class="lbl">Player 2</div>
+    <div class="pname">O</div>
+    <div class="pscore" id="score-o">0</div>
+    <div class="lbl">conquered</div>
+  </div>
+</div>
+
+<canvas id="board"></canvas>
+<div id="msg"></div>
+
+<div id="controls">
+  <button id="btn-pass" onclick="passTurn()">Pass Turn</button>
+  <button id="btn-size" onclick="cycleSize()">Board: 9×9</button>
+  <button id="btn-new"  onclick="newGame()">New Game</button>
+</div>
+
+<details>
+  <summary>How to Play ▾</summary>
+  <ul>
+    <li>Two players alternate placing <strong>X</strong> and <strong>O</strong> at grid intersection points.</li>
+    <li>Pieces connect in <strong>all 8 directions</strong> (horizontal, vertical, and diagonal).</li>
+    <li>To <strong>conquer</strong>: completely surround an opponent's group — no empty intersections left in any of the 8 directions around the group.</li>
+    <li>Conquered pieces are <strong>removed</strong> and added to your score as conquered walls.</li>
+    <li>A wall once built <strong>cannot be escaped</strong> — surrounded pieces are always captured.</li>
+    <li>You <strong>cannot</strong> play a move that kills your own group without capturing the opponent first (no suicide).</li>
+    <li>Two consecutive <strong>passes</strong> end the game. Most conquests wins!</li>
+    <li>To conquer an opponent's wall formation, build a bigger wall around their entire connected group.</li>
+  </ul>
+</details>
+
+<script>
+// ── Constants ─────────────────────────────────────────────────────────────
+const DIRS8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+const SIZES  = [9, 13, 19];
+const CELLS  = [56, 42, 30]; // px per cell for each board size
+const PADS   = [50, 44, 38];
+const RADII  = [20, 15, 11];
+
+// ── State ─────────────────────────────────────────────────────────────────
+let sizeIdx   = 0;
+let BOARD_SZ  = SIZES[sizeIdx];
+let CELL_PX   = CELLS[sizeIdx];
+let PAD_PX    = PADS[sizeIdx];
+let STONE_R   = RADII[sizeIdx];
+
+let board, curP, scores, passes, gameOver, lastMove;
+
+// ── Canvas setup ──────────────────────────────────────────────────────────
+const canvas = document.getElementById('board');
+const ctx    = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const sz = PAD_PX * 2 + CELL_PX * (BOARD_SZ - 1);
+  canvas.width  = sz;
+  canvas.height = sz;
+}
+
+// ── Game logic ────────────────────────────────────────────────────────────
+function inB(r, c) {
+  return r >= 0 && r < BOARD_SZ && c >= 0 && c < BOARD_SZ;
+}
+
+function getGroup(b, r, c) {
+  const own = b[r][c];
+  if (!own) return null;
+  const g = new Set(), q = [[r, c]];
+  while (q.length) {
+    const [cr, cc] = q.pop();
+    const k = cr + ',' + cc;
+    if (g.has(k) || !inB(cr, cc) || b[cr][cc] !== own) continue;
+    g.add(k);
+    for (const [dr, dc] of DIRS8) q.push([cr+dr, cc+dc]);
+  }
+  return g;
+}
+
+function liberties(b, group) {
+  const libs = new Set();
+  for (const k of group) {
+    const [r, c] = k.split(',').map(Number);
+    for (const [dr, dc] of DIRS8) {
+      const nr = r+dr, nc = c+dc;
+      if (inB(nr, nc) && !b[nr][nc]) libs.add(nr+','+nc);
+    }
+  }
+  return libs;
+}
+
+function tryPlace(r, c) {
+  if (gameOver || board[r][c] !== null) return;
+
+  const opp = curP === 'X' ? 'O' : 'X';
+
+  // Work on a copy
+  const nb = board.map(row => [...row]);
+  nb[r][c] = curP;
+
+  // Capture all opponent groups with 0 liberties
+  let captured = 0;
+  const seen = new Set();
+  for (const [dr, dc] of DIRS8) {
+    const nr = r+dr, nc = c+dc;
+    if (!inB(nr, nc) || nb[nr][nc] !== opp) continue;
+    const k = nr+','+nc;
+    if (seen.has(k)) continue;
+    const g = getGroup(nb, nr, nc);
+    for (const gk of g) seen.add(gk);
+    if (liberties(nb, g).size === 0) {
+      for (const gk of g) {
+        const [gr, gc] = gk.split(',').map(Number);
+        nb[gr][gc] = null;
+        captured++;
+      }
+    }
+  }
+
+  // Suicide check: own group has no liberties and captured nothing
+  const myG = getGroup(nb, r, c);
+  if (liberties(nb, myG).size === 0 && captured === 0) {
+    flash('Invalid move — suicide!');
+    return;
+  }
+
+  // Commit
+  board       = nb;
+  scores[curP] += captured;
+  lastMove     = [r, c];
+  passes       = 0;
+  curP         = opp;
+
+  if (captured > 0) flash(opp === 'X' ? `O conquered ${captured}!` : `X conquered ${captured}!`);
+  else              clearMsg();
+
+  refreshUI();
+  render();
+}
+
+function passTurn() {
+  if (gameOver) return;
+  passes++;
+  if (passes >= 2) { endGame(); return; }
+  const prev = curP;
+  curP = curP === 'X' ? 'O' : 'X';
+  flash(`${prev} passed — ${curP}'s turn`);
+  refreshUI();
+  render();
+}
+
+function endGame() {
+  gameOver = true;
+  const winner = scores.X > scores.O ? 'X wins'
+               : scores.O > scores.X ? 'O wins'
+               : 'Draw';
+  flash(`Game Over — ${winner}! (X:${scores.X} O:${scores.O})`);
+  document.getElementById('turn-txt').textContent = '—';
+  refreshUI(true);
+}
+
+function cycleSize() {
+  sizeIdx = (sizeIdx + 1) % SIZES.length;
+  BOARD_SZ = SIZES[sizeIdx];
+  CELL_PX  = CELLS[sizeIdx];
+  PAD_PX   = PADS[sizeIdx];
+  STONE_R  = RADII[sizeIdx];
+  document.getElementById('btn-size').textContent = `Board: ${BOARD_SZ}×${BOARD_SZ}`;
+  newGame();
+}
+
+function newGame() {
+  board    = Array.from({length: BOARD_SZ}, () => Array(BOARD_SZ).fill(null));
+  curP     = 'X';
+  scores   = {X: 0, O: 0};
+  passes   = 0;
+  gameOver = false;
+  lastMove = null;
+  clearMsg();
+  resizeCanvas();
+  refreshUI();
+  render();
+}
+
+// ── UI helpers ────────────────────────────────────────────────────────────
+let msgTimer = null;
+function flash(txt) {
+  document.getElementById('msg').textContent = txt;
+  clearTimeout(msgTimer);
+  msgTimer = setTimeout(clearMsg, 3000);
+}
+function clearMsg() {
+  document.getElementById('msg').textContent = '';
+}
+
+function refreshUI(over = false) {
+  document.getElementById('score-x').textContent = scores.X;
+  document.getElementById('score-o').textContent = scores.O;
+  if (!over) {
+    document.getElementById('turn-txt').textContent = curP;
+    document.getElementById('pass-count').textContent = passes ? `(${passes} pass)` : '';
+  }
+  document.getElementById('card-x').classList.toggle('active', curP === 'X' && !gameOver);
+  document.getElementById('card-o').classList.toggle('active', curP === 'O' && !gameOver);
+}
+
+// ── Rendering ─────────────────────────────────────────────────────────────
+function gxy(r, c) {
+  return [PAD_PX + c * CELL_PX, PAD_PX + r * CELL_PX];
+}
+
+function render(hr = -1, hc = -1) {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Board background — warm wood
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#c9a227');
+  bg.addColorStop(1, '#9a7417');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid lines
+  ctx.strokeStyle = '#7a5a10';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < BOARD_SZ; i++) {
+    ctx.beginPath();
+    ctx.moveTo(...gxy(i, 0));
+    ctx.lineTo(...gxy(i, BOARD_SZ-1));
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(...gxy(0, i));
+    ctx.lineTo(...gxy(BOARD_SZ-1, i));
+    ctx.stroke();
+  }
+
+  // Coordinate labels
+  ctx.fillStyle = '#5a3e08';
+  ctx.textAlign  = 'center';
+  ctx.textBaseline = 'middle';
+  const labelSize = Math.max(9, STONE_R - 4);
+  ctx.font = `${labelSize}px monospace`;
+  const COL_LETTERS = 'ABCDEFGHJKLMNOPQRST'; // standard Go columns (skip I)
+  for (let i = 0; i < BOARD_SZ; i++) {
+    const [cx, cy] = gxy(i, 0);
+    ctx.fillText(String(BOARD_SZ - i), PAD_PX - 28, cy);
+    const [cx2, cy2] = gxy(0, i);
+    ctx.fillText(COL_LETTERS[i], cx2, PAD_PX - 24);
+  }
+
+  // Star points (hoshi)
+  const starMap = {
+    9:  [[2,2],[2,6],[4,4],[6,2],[6,6]],
+    13: [[3,3],[3,9],[6,6],[9,3],[9,9]],
+    19: [[3,3],[3,9],[3,15],[9,3],[9,9],[9,15],[15,3],[15,9],[15,15]],
+  };
+  ctx.fillStyle = '#7a5a10';
+  for (const [r, c] of (starMap[BOARD_SZ] || [])) {
+    const [x, y] = gxy(r, c);
+    ctx.beginPath();
+    ctx.arc(x, y, Math.max(2, STONE_R * 0.15), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Hover ghost
+  if (hr >= 0 && inB(hr, hc) && !board[hr][hc] && !gameOver) {
+    const [x, y] = gxy(hr, hc);
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    drawStone(x, y, curP, false);
+    ctx.restore();
+  }
+
+  // Pieces
+  for (let r = 0; r < BOARD_SZ; r++) {
+    for (let c = 0; c < BOARD_SZ; c++) {
+      if (!board[r][c]) continue;
+      const [x, y] = gxy(r, c);
+      const isLast = lastMove && lastMove[0] === r && lastMove[1] === c;
+      drawStone(x, y, board[r][c], isLast);
+    }
+  }
+}
+
+function drawStone(x, y, p, mark = false) {
+  ctx.save();
+  const isX = p === 'X';
+
+  // Drop shadow
+  ctx.shadowColor   = 'rgba(0,0,0,0.55)';
+  ctx.shadowBlur    = 7;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 3;
+
+  // Stone gradient
+  const g = ctx.createRadialGradient(x - STONE_R*0.3, y - STONE_R*0.3, STONE_R*0.05, x, y, STONE_R);
+  if (isX) {
+    g.addColorStop(0, '#4a4a4a');
+    g.addColorStop(1, '#080808');
+  } else {
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(1, '#c0c0c0');
+  }
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, STONE_R, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+
+  // Last-move marker
+  if (mark) {
+    ctx.fillStyle = isX ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)';
+    ctx.beginPath();
+    ctx.arc(x, y, STONE_R * 0.22, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Symbol (X or O)
+  const symSz = STONE_R * 0.55;
+  ctx.strokeStyle = isX ? '#cccccc' : '#444444';
+  ctx.lineWidth   = Math.max(1.5, STONE_R * 0.12);
+  ctx.lineCap     = 'round';
+
+  if (isX) {
+    ctx.beginPath();
+    ctx.moveTo(x - symSz, y - symSz); ctx.lineTo(x + symSz, y + symSz);
+    ctx.moveTo(x + symSz, y - symSz); ctx.lineTo(x - symSz, y + symSz);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.arc(x, y, symSz, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ── Input ─────────────────────────────────────────────────────────────────
+function canvasRC(e) {
+  const rect = canvas.getBoundingClientRect();
+  const sx   = canvas.width  / rect.width;
+  const sy   = canvas.height / rect.height;
+  const cx   = e.clientX || (e.touches && e.touches[0].clientX);
+  const cy   = e.clientY || (e.touches && e.touches[0].clientY);
+  const x    = (cx - rect.left) * sx;
+  const y    = (cy - rect.top)  * sy;
+  const r    = Math.round((y - PAD_PX) / CELL_PX);
+  const c    = Math.round((x - PAD_PX) / CELL_PX);
+  return [r, c];
+}
+
+canvas.addEventListener('click', e => {
+  if (gameOver) return;
+  const [r, c] = canvasRC(e);
+  if (inB(r, c)) tryPlace(r, c);
+});
+
+canvas.addEventListener('mousemove', e => {
+  if (gameOver) { render(); return; }
+  const [r, c] = canvasRC(e);
+  render(inB(r, c) ? r : -1, inB(r, c) ? c : -1);
+});
+
+canvas.addEventListener('mouseleave', () => render());
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (gameOver) return;
+  const [r, c] = canvasRC(e);
+  if (inB(r, c)) tryPlace(r, c);
+}, {passive: false});
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+newGame();
+</script>
+</body>
+</html>
